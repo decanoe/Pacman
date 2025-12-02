@@ -1,0 +1,7 @@
+lib
+bin
+.vscode
+
+doc/*.aux
+doc/*.log
+doc/*.toc

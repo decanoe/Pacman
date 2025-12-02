@@ -58,6 +58,7 @@ public class PacmanGame extends Game {
     @Override
     protected void initialize_game() {
         Maze old_maze = maze;
+        clear_ghost_scared();
         try {
             maze = new Maze(layout_path);
             agents.clear();
@@ -208,7 +209,7 @@ public class PacmanGame extends Game {
         boolean food_left = false;
         for (int x = 0; x < maze.getSizeX() && !food_left; x++)
         for (int y = 0; y < maze.getSizeY() && !food_left; y++) {
-            if (maze.isFood(x, y)) food_left = true;
+            if (maze.isFood(x, y) || maze.isCapsule(x, y)) food_left = true;
         }
         if (!food_left) return false;
 

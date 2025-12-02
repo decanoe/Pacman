@@ -6,8 +6,10 @@
 \usepackage{amsmath}
 \usepackage{cases}
 \usepackage{framed}
+\usepackage[a4paper,margin=1.5in,footskip=0.25in]{geometry}
+\usepackage{multirow}
 
-\title{Design Pattern\\Pacman}
+\title{Projet Design Pattern\\Pacman}
 \author{Noé De Caestecker}
 \date{\today}
 
@@ -16,76 +18,210 @@
 \tableofcontents
 
 \begin{abstract}
-    Le but du projet est de créer un système de recherche documentaire permettant des recherches plus ou moins avancées sur un corpus de document fourni.
+    L'objectif du projet est de créer un jeu de plateau séquentiel similaire au jeu Pacman composé d'un monde
+de taille limitée dans lequel évolue un certain nombre d'agents.
+
+Les règles du jeu sont les suivantes :
+\begin{list}{$\bullet$}{}
+    \item L'environnement est constitué d'un labyrinthe avec des cases libres et des cases murs. Sur
+    chaque case libre peut se trouver des pac-gommes que les agents pacmans doivent manger
+    pour gagner la partie. Une vue du plateau est présentée sur la figure 1.
+    \item Chaque agent pacman ou fantôme se déplace d'une case à chaque tour dans la direction de
+    son choix mais ne peut pas aller sur une case mur.
+    \item Si un agent pacman se trouve sur la même case qu'un agent fantôme il est éliminé et disparaît
+    du plateau.
+    \item Des capsules spéciales sont disposées sur le plateau. Une fois mangée par un pacman, elles
+    rendent les fantômes vulnérables pendant un certain nombre de périodes au cours desquelles
+    les agents pacmans peuvent les manger.
+    \item Le jeu s'arrête si les agents fantômes mangent l'ensemble des pacmans (victoire des fantômes),
+    ou bien si les pacmans mangent l'ensemble des pac-gommes (victoire des pacmans).
+\end{list}
 \end{abstract}
-\pagebreak
-
-% #region ================ Choix d'implémentation ===================
-\section{Choix d'implémentation}\indent
-Le projet a été réalisé intégralement en python, en utilisant le moins de librairies externes possibles (librairie graphique, gestion de fichiers et regex seulement)
-afin de mettre en œuvre le plus de techniques par nous-même.
-
-Le système de recherche permet l'utilisation d'un caractère joker $*$ et fourni les réponses en les ordonnant dans un ordre décroissant de pertinence.
-% #endregion
-
-% #region ================ Index ===================
-\section{Index}\indent
-L'index suit une structure d'arbre 2-4 où chaque mot est stocké ainsi que ses rotations (pour l'utilisation du caractère joker).
-Chaque feuille de l'index est une structure qui représente un mot et stocke l'ensemble des poids de ce mot pour chaque document qui le contient au moins 1 fois.
-
-Afin d'éviter les redondances dans les structures de poids, chaque rotation d'un mot ne stocke que le mot dont il provient au lieu de ses poids. Si une recherche tombe
-sur l'une de ces rotations, une seconde recherche dans l'arbre est réalisée pour trouver la bonne liste de poids. Cette implémentation rallonge le temps
-d'exploration, mais permet de réduire grandement la taille de l'index (la taille est divisée par 4 en moyenne). De plus, le temps d'exploration est négligeable
-pour des parcours sans caractère joker (ce qui est le cas pour ce parcours supplémentaire).
-% #endregion
-
-% #region ================ Pertinance ===================
-\section{Calcul de la pertinence}\indent
-La pertinence des documents est évaluée en utilisant une distance cosine. Chaque document peut être représenté par un vecteur de dimension $n$ égale au nombre de mots différents
-dans la base de documents (après passage dans le stemmer) où chaque coordonnée représente le poids du document pour ce mot.
-
-Lors d'une requête, ces vecteurs sont construits en récupérant uniquement les coordonnées dont les mots sont présents dans la requête. Ces nouveaux vecteurs partiels sont ensuite
-normalisés en les divisant par la norme de leur vecteur complet (calculés lors de la création de l'index).
-Seuls les vecteurs des documents ayant un mot en commun avec la requête sont récupérés (pour simplifier les calculs).
-La requête est, elle aussi, transformée en vecteur en utilisant les mêmes poids que les documents et ce vecteur est aussi normalisé.
-
-On donne ensuite à chaque document un poids égal au produit scalaire entre son vecteur et le vecteur de la requête.
-% #endregion
 
 \pagebreak
-% #region ================ Calcul des poids ===================
-\section{Calcul et représentation des poids}\indent
-Les poids associés à chaque document pour chaque mot sont stockés dans l'arbre de l'index. Chaque feuille de l'index représente un mot $m$ (ou une rotation de $m$) et stocke soit
-un pointeur vers la feuille de $m$ si la feuille est une rotation, soit un dictionnaire (hash map) qui associe chaque document $d$ le nombre d'occurrences de $m$ dans $d$.
-La structure en dictionnaire permet de faciliter la création de l'index (dans lequel chaque mot est ajouté 1 par 1) sans augmenter la complexité de la recherche puisque la création
-des vecteurs de document se fait en parcourant les paires mots-documents.\\
+% #region ================ Design Pattern ===================
+\section{Design Patterns utilisés}
+L'ensemble des design patterns utilisés comprend :\\
 
-Une fois tous les mots ajoutés dans l'index et le nombre de documents connu, un passage est fait dans chaque feuille de l'arbre pour calculer l'$idf$ du mot et stocker
-(avec le nombre d'occurrences) le poids de ce mot pour chaque document.
-
-Ces poids sont calculés en multipliant $1 + \log_{10}(w_f)$ par l'$idf$ où $w_f$ est le nombre d'occurrences du mot dans le document.
-L'$idf$ est calculé comme $\log_{10}(\frac{d_c}{d_f})$ où $d_f$ est le nombre de documents contenant le mot et $d_c$ est le nombre de documents.
-% #endregion
-
-% #region ================ Correction des mots ===================
-\section{Correction des mots}\indent
-Afin d'aider l'utilisateur dans sa recherche, une correction des mots est proposée (mais pas imposée).\\
-
-Cette correction est guidée par un fichier texte contenant les mots de la langue anglaise (langage des documents). Ce fichier est chargé dans un dictionnaire
-(hash map) où chaque clef est un code Soundex et chaque valeur est une liste de mots correspondants au code. Ce dictionnaire est utilisé pour guider la
-correction des mots vers des mots se prononçant de façon similaire.\\
-
-La liste de mots similaire est ensuite parcourue pour trouver le mot le plus proche en utilisant un système de trigramme et la mesure de Jaccard.
-% #endregion
-
-% #region ================ Stoplist ===================
-\section{Stop list}\indent
-La stop list fournie étant trop limitée (trop de mots utiles), nous avons décidé de créer notre propre stop list en utilisant les documents fournis.
-Nous avons décidé de retirer tous les mots dont l'$idf$ était inférieur à $0.1$ puisque ces mots ont peu d'importance dans les poids des documents finaux,
-mais sont liés à des dictionnaires de poids très grands (leur nombre de documents lié étant supérieur à $80\%$ du nombre de documents total).
-
-Cette stop list n'aide pas la vitesse de requête, mais permet de réduire un peu la taille de l'index.
+\centerline{
+\begin{tabular}{ | p{12em} | p{20em} | p{15em} | }
+    \hline
+    \multicolumn{1}{|c|}{\textbf {Design Patterns}} & \multicolumn{1}{|c|}{\textbf {Utilisation}} & \multicolumn{1}{|c|}{\textbf {Explications}} \\ [0.5ex] 
+    \hline\hline
+    \multirow{2}{8em}{\textit{Patron de méthode}}
+        & - Structure de l'algorithme de pathfinding & {\footnotesize - le pathfinding est composé de plusieurs parties d'algorithmes pour plus de contrôle} \\
+        & - Structure du jeu & \\
+    \hline
+    \textit{Observateur / Observable}
+        & - Lien entre le modèle du jeu et les interfaces graphiques & \\
+    \hline
+    \textit{stratégie}
+        & - Comportements des agents & \\
+    \hline
+    \textit{composite}
+        & - Comportements complexes des agents & {\footnotesize - certains comportements sont composés d'autres comportements et les utilisent en fonction du contexte}\\
+    \hline
+    \textit{état}
+        & - Activation des boutons de l'interface de contrôle & \\
+    \hline
+    \textit{fabrique}
+        & - Création des comportements & {\footnotesize - les comportements peuvent être créés en utilisant un \textit{Enum}}\\
+        & - Presets de pathfinding & {\footnotesize - l'algorithme de pathfinding demandant plusieurs classes en paramètre, la création est regroupée en presets pour plus de simplicité}\\
+    \hline
+    \textit{singleton}
+        & - Enregistrement des EventListener & {\footnotesize - pour les comportements au clavier, les comportements sont ajoutés dans une unique liste de listener elle-même ajoutée sur les interfaces pour écouter les events}\\
+    \hline
+\end{tabular}}
 % #endregion
 \pagebreak
+% #region ================ Fonctionalités ===================
+\section{Fonctionnalités ajoutées}
+Les fonctionnalités ajoutées les plus importantes sont :
+\begin{list}{$\bullet$}{}
+    \item Possibilité d'ouvrir les murs extérieurs du layout pour créer des chemins qui font le tour du labyrinthe
+    \item Temps d'attente dynamique entre chaque tour pour compenser les tours ayant pris trop de temps à s'exécuter
+    \item Évaluation et affichage des tps (tours par seconde) afin de voir les ralentissements non liés à l'interface graphique
+    \item Ajout de différents comportements :
+    \begin{list}{$\circ$}{}
+        \item un comportement aléatoire
+        \item un comportement d'arrêt (pas de mouvement)
+        \item un comportement pour jouer au clavier
+        \item un comportement changeant en fonction de si les fantômes sont effrayés\\{\footnotesize(composé de 2 autres comportements)}
+        \item un comportement changeant en fonction de la distance à un type d'entité choisi\\{\footnotesize(composé de 2 autres comportements)}
+        \item un comportement appliquant un autre comportement si le premier a renvoyé \textit{null}\\{\footnotesize(composé de 2 autres comportements)}
+        \item un comportement de pathfinding paramétrable
+    \end{list}
+    \item Refonte de l'affichage des murs pour une version plus jolie
+    \item Ajout d'un espace entre les agents et les murs pour plus de visibilité
+    \item Ajout d'une couleur propre à chaque fantôme
+    \item Ajout d'une animation de bouche pour les pacmans
+    \item Déplacement des yeux des fantômes en fonction de leur direction de mouvement
+    \item Calcul et application de la taille optimale de la fenêtre\\{\footnotesize(en gardant le rapport largeur / hauteur du labyrinthe)}
+    \item Ajout d'un bouton pour choisir le layout du labyrinthe
+    \item Ajout d'une interface pour changer les comportements des agents
+\end{list}
+% #endregion
+
+\pagebreak
+\section*{Rapport détaillé}
+Le reste du rapport est une description plus détaillée du projet, elle n'est pas utile et n'a pas besoin d'être lue.
+% #region ================ Implémentation Modèle ===================
+\section{Implémentation du Modèle}
+% #region ================ Structure globale ===================
+\subsection{Structure globale}\indent
+La structure globale du projet suit le pattern \textit{Modèle-Vue-Contrôleur}.\\
+La modélisation du jeu est composée de 2 classes principales :
+\begin{list}{$\bullet$}{}
+    \item Une classe \textit{Maze} qui stocke la structure du labyrinthe.
+    \item Une classe \textit{PacmanGame} qui gère l'architecture séquentielle du jeu et stocke les différents agents.
+\end{list}
+
+\subsubsection*{Maze}\indent
+La classe \textit{Maze}, fournie dans les fichiers source à utiliser pour le projet, a été modifiée pour pouvoir ajouter
+quelques fonctionnalités.
+\begin{list}{$\bullet$}{}
+    \item Ajout d'un \textit{Enum EntityType} pour donner un type d'entité en paramètre de méthodes.
+    \item Ajout de méthodes pour récupérer la position de l'entité d'un type donné la plus proche d'une position donnée
+    (utile pour les comportements des agents).
+    \item Possibilité d'ouvrir les murs extérieurs du layout pour créer des chemins qui font le tour du labyrinthe
+    (comme dans le pacman originel).
+\end{list}
+
+\subsubsection*{PacmanGame}\indent
+La classe \textit{PacmanGame} utilise le pattern \textit{Patron de méthode} en héritant d'une classe abstraite \textit{Game}
+qui gère la structure séquentielle du jeu. Parmi les changements d'implémentation de la classe \textit{Game}, on trouve
+\begin{list}{$\bullet$}{}
+    \item Temps d'attente dynamique entre chaque tour pour compenser les tours ayant pris trop de temps à s'exécuter.
+    \item Évaluation des tps (tours par secondes) afin de voir les ralentissements non liés à l'interface graphique.
+\end{list}
+Les classes \textit{Game} et \textit{PacmanGame} implémentent aussi le pattern \textit{Observateur / Observable} utilisé par
+les interfaces graphiques pour transmettre des informations comme le passage d'un tour, la fin d'une partie, les tps et
+l'initialisation du labyrinthe.\\
+
+L'ensemble des agents est stocké dans la classe \textit{PacmanGame} sous forme d'une liste d'agent, sans distinction entre pacmans
+et fantômes. Lors d'un tour, les actions de tous les agents sont évaluées et stockés puis chaque agent réalise son action. Un dernier
+passage est ensuite réalisé pour savoir si des agents ou des capsules / nourritures ont été mangés.
+
+La vérification du fait qu'un agent en mange un autre est réalisée par l'agent qui a une méthode prenant en paramètre un \textit{EntityType}
+et renvoyant si oui ou non il est capable de manger cette entité.
+% #endregion
+
+\pagebreak
+% #region ================ Agents ===================
+\subsection{Agents}\indent
+Les agents sont représentés pas deux classes \textit{PacmanAgent} et \textit{GhostAgent} héritant de la classe \textit{Agent}. Ces agents
+utilisent le pattern \textit{stratégie} pour définir leur comportement. En plus de leur position actuelle, ils stockent leur position
+précédente afin de pouvoir identifier les cas où un pacman et un fantôme échangent de position.
+% #endregion
+% #region ================ Behavior ===================
+\subsection{Comportements}\indent
+Les comportements sont un ensemble de classes héritant toutes d'une classe \textit{Behavior}. Cette classe est principalement composée
+d'une méthode qui renvoie le prochain mouvement à faire pour l'agent à qui elle est associée (ou \textit{null} si aucun mouvement ne semble bon).
+
+Certains comportements utilisent le pattern \textit{composite} en étant composé de deux autres comportements afin de créer des comportements
+plus complexes dépendants du contexte.\\
+
+Les comportements implémentés comprennent :
+\begin{list}{$\bullet$}{}
+    \item un comportement aléatoire
+    \item un comportement d'arrêt (pas de mouvement)
+    \item un comportement pour jouer au clavier
+    \item un comportement changeant en fonction de si les fantômes sont effrayés (composé d'un comportement à réaliser si les fantômes sont
+    effrayés et d'un autre comportement à réaliser dans le cas contraire)
+    \item un comportement changeant en fonction de la distance à un type d'entité choisi
+    \item un comportement appliquant un autre comportement si le premier a renvoyé \textit{null}
+    \item un comportement de pathfinding paramétrable
+\end{list}
+
+\subsubsection{Pathfinding}\indent
+Le comportement de pathfinding utilise lui aussi le pattern \textit{Patron de méthode} mais est composé de 4 classes décrivant les
+différentes parties de l'algorithme A* utilisé. Ces différentes parties sont :
+\begin{list}{$\bullet$}{}
+    \item l'ordre des mouvements à tester pour propager chaque cellule (pour éviter ou non une préférence de direction arbitraire)
+    \item le poids à utiliser (en plus de la taille du chemin) pour l'ordre de propagation des cellules (distance euclidienne à une cible,
+    distance de Manhattan, distance négative pour fuir une cible, \ldots)
+    \item la condition de fin de chemin (cible atteinte, distance minimum pour fuir, \ldots)
+    \item les mouvements autorisés (pour empêcher ou non les fantômes de traverser d'autres fantômes ou toute autre entité choisie)
+\end{list}
+% #endregion
+% #endregion
+
+\pagebreak
+% #region ================ Implémentation Vues / Contrôleur ===================
+\section{Implémentation des Vues et des Contrôleurs}
+Les classes responsables des interfaces graphiques implémentent le pattern \textit{Observateur / Observable} pour
+récupérer les informations du modèle en cas de changement et les afficher.
+
+Trois interfaces sont présentes : le jeu, le panneau de contrôle et le panneau de comportements.
+
+% #region ================ Jeu ===================
+\subsection{Le jeu}
+L'interface du jeu utilise l'interface fournie dans les fichiers source à utiliser pour le projet, avec quelques
+modifications graphiques :
+\begin{list}{$\bullet$}{}
+    \item réécriture de l'affichage des murs pour une version plus jolie
+    \item ajout d'un facteur de réduction pour ajouter un espace entre les agents et les murs
+    \item ajout d'une couleur propre à chaque fantôme
+    \item ajout d'une animation de bouche pour les pacmans
+    \item déplacement des yeux des fantômes en fonction de leur direction de mouvement
+    \item calcul et application de la taille optimale de la fenêtre en gardant le rapport largeur / hauteur du labyrinthe
+\end{list}
+% #endregion
+% #region ================ panneau de contrôle ===================
+\subsection{Le panneau de contrôle}
+L'interface du panneau de contrôle est similaire à celle à implémenter pour le projet avec les changements suivants :
+\begin{list}{$\bullet$}{}
+    \item ajout des tps sur l'affichage
+    \item ajout d'un bouton pour choisir le layout du labyrinthe
+\end{list}
+Cette interface utilise le pattern \textit{état} pour désactiver certains boutons lorsque le jeu est lancé, arrêté ou a fait une seule itération.
+% #endregion
+% #region ================ panneau de comportements ===================
+\subsection{Le panneau de comportements}
+L'interface du panneau de comportements est un nouveau panneau qui présente une interface pour changer le comportement de chaque agent.
+Il dispose de deux flèches pour sélectionner un agent, d'un bouton pour arrêter la sélection et d'un affichage en arbre du comportement
+de l'agent sélectionné pour le modifier.
+% #endregion
+% #endregion
 
 \end{document}

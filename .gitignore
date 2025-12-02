@@ -5,3 +5,4 @@ bin
 doc/*.aux
 doc/*.log
 doc/*.toc
+texput.log
